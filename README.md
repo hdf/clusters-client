@@ -10,7 +10,7 @@ Install [Node.js](https://nodejs.org/en/)
 ## Usage
 >`clusters-client localhost:8082`
 
-This will work as well (if say, the server is behind nginx):
+This will work as well (if say, the server is behind an nginx reverse proxy):
 >`clusters-client https://localhost/clusters/`
 
 If you have [MinGW-w64](http://sourceforge.net/projects/mingw-w64/) and [MSYS2](http://msys2.github.io/) installed on Windows, or are on Linux, than you can lower process priority for the workers like this:
