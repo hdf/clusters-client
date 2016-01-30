@@ -1,0 +1,9 @@
+*.md
+*.bat
+*.sh
+*.log
+*.db
+package.json
+todo.txt
+.git/*
+.vscode/*
