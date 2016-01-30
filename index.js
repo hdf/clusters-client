@@ -1,7 +1,10 @@
+"use strict";
+
 var os = require('os'),
     https = require('https'),
     url = require('url'),
     zlib = require('zlib'),
+    tty = require('tty').isatty(),
     Worker = require('webworker-threads').Worker;
 
 var host = 'localhost', port = 8082, prefix = '',
@@ -54,29 +57,31 @@ function stopWorkers() {
 }
 //}
 
-var idling = 0;
-setInterval(function() { // Running workers display
-  process.stdout.moveCursor(0, 1);
-  process.stdout.clearScreenDown();
-  if (workers.length < 1) {
-    idling = (idling + 1) % 4;
-    var dots = new Array(idling + 1).join('.');
-    process.stdout.write('Idling' + dots);
+if (tty) {
+  var idling = 0;
+  setInterval(function() { // Running workers display
+    process.stdout.moveCursor(0, 1);
+    process.stdout.clearScreenDown();
+    if (workers.length < 1) {
+      idling = (idling + 1) % 4;
+      var dots = new Array(idling + 1).join('.');
+      process.stdout.write('Idling' + dots);
+      process.stdout.cursorTo(0);
+      process.stdout.moveCursor(0, -1);
+      return;
+    }
+    process.stdout.write('Running Workers: ' + workers.length +
+                         '\nRemaining jobs: ' + inputData.length +
+                         '\nCompleted: ' + (Math.round((completed / max) * 10000) / 100) + '%');
     process.stdout.cursorTo(0);
-    process.stdout.moveCursor(0, -1);
-    return;
-  }
-  process.stdout.write('Running Workers: ' + workers.length +
-                       '\nRemaining jobs: ' + inputData.length +
-                       '\nCompleted: ' + (Math.round((completed / max) * 10000) / 100) + '%');
-  process.stdout.cursorTo(0);
-  process.stdout.moveCursor(0, -3);
-}, 250);
-process.on('SIGINT', function() {
-  process.stdout.moveCursor(0, 1);
-  process.stdout.clearScreenDown();
-  process.exit();
-});
+    process.stdout.moveCursor(0, -3);
+  }, 250);
+  process.on('SIGINT', function() {
+    process.stdout.moveCursor(0, 1);
+    process.stdout.clearScreenDown();
+    process.exit();
+  });
+}
 
 //{ Server communications
 var pkgId = '';
@@ -104,26 +109,32 @@ function ajax(url, data, cb) {
 }
 
 function getPackage() {
-  process.stdout.clearLine();
-  process.stdout.write('Getting new package...');
-  process.stdout.cursorTo(0);
+  if (tty) {
+    process.stdout.clearLine();
+    process.stdout.write('Getting new package...');
+    process.stdout.cursorTo(0);
+  }
   ajax('get', {packageId: pkgId}, function(res) {
     gotPackage(JSON.parse(res));
   });
 }
 
 function gotPackage(pkg) {
-  process.stdout.clearLine();
+  if (tty) process.stdout.clearLine();
   if (getPackageTimer) clearTimeout(getPackageTimer);
   if (typeof pkg.packageId == 'undefined') { // If there are no more packages to process, check again in a minute
     stopWorkers();
-    process.stdout.write('No new packages available, checking again in one minute.');
-    process.stdout.cursorTo(0);
+    if (tty) {
+      process.stdout.write('No new packages available, checking again in one minute.');
+      process.stdout.cursorTo(0);
+    }
     getPackageTimer = setTimeout(getPackage, 60000);
     return;
   }
-  process.stdout.write('Got new package (' + packages + '). Processing...');
-  process.stdout.cursorTo(0);
+  if (tty) {
+    process.stdout.write('Got new package (' + packages + '). Processing...');
+    process.stdout.cursorTo(0);
+  }
   pkgId = pkg.packageId;
   inputData = pkg.data;
   max = inputData.length;
@@ -138,9 +149,11 @@ function gotPackage(pkg) {
 
 function sendResults() {
   packages++;
-  process.stdout.clearLine();
-  process.stdout.write('Sending back results... Packages processed: ' + packages);
-  process.stdout.cursorTo(0);
+  if (tty) {
+    process.stdout.clearLine();
+    process.stdout.write('Sending back results... Packages processed: ' + packages);
+    process.stdout.cursorTo(0);
+  }
   ajax('result', {packageId: pkgId, result: results});
   results = [];
 }

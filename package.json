@@ -13,12 +13,13 @@
     "url": "https://github.com/hdf/clusters-client.git"
   },
   "dependencies": {
-    "forever": "^0.15.1",
     "webworker-threads": "^0.6.2"
+  },
+  "bin": {
+    "clusters-client": "./index.js"
   },
   "main": "index.js",
   "scripts": {
-    "start": "forever start -w index.js localhost:8082",
-    "stop": "forever stop index.js"
+    "start": "node ."
   }
 }
