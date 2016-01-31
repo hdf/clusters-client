@@ -6,10 +6,10 @@ var os = require('os'),
     https = require('https'),
     url = require('url'),
     zlib = require('zlib'),
-    tty = require('tty').isatty(),
     Worker = require('webworker-threads').Worker;
 
-var host = 'localhost', port = 8082, prefix = '',
+var tty = (typeof process.stdout.clearLine == 'function'),
+    host = 'localhost', port = 8082, prefix = '',
     cores = os.cpus().length || 1,
     workers = [], proc = '', inputData = [], packages = 0,
     completed = 0, max = 0, // For progress meter
