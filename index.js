@@ -10,7 +10,7 @@ var os = require('os'),
 
 var tty = (typeof process.stdout.clearLine == 'function'),
     host = 'localhost', port = 8082, prefix = '',
-    cores = os.cpus().length || 1,
+    cores = os.cpus().length || 1, start, time,
     workers = [], proc = '', inputData = [], packages = 0,
     completed = 0, max = 0, // For progress meter
     c = 1, // Partition data for workers (dynamic scheduling)
@@ -151,6 +151,10 @@ function gotPackage(pkg) {
 
 function sendResults() {
   packages++;
+  time = process.hrtime(start);
+  console.log('Package \'' + pkgId + '\' containing ' + results.length +
+              ' elements processed in ' + (Math.round((time[0] * 1e9 + time[1]) / 1e6) / 1000) + ' seconds.');
+  start = process.hrtime();
   if (tty) {
     process.stdout.clearLine();
     process.stdout.write('Sending back results... Packages processed: ' + packages);
@@ -187,6 +191,7 @@ getPackage();
 function doWork() {
   startWorkers();
   completed = 0;
+  start = process.hrtime();
   if (staticScheduling)
     c = Math.ceil(inputData.length / workers.length); // Partition data for workers (static scheduling)
   for (var i = 0, n = workers.length; i < n; i++) {

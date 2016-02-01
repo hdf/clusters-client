@@ -1,7 +1,7 @@
 @echo off
 cls
 
-taskkill /F /IM node.exe > nul
+rem taskkill /F /IM node.exe > nul
 rem node-debug -p 5859 server
 rem set DEBUG=compression
-node . localhost:8082
+forever start -o out.log -e err.log . localhost:8082

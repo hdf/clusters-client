@@ -3,7 +3,12 @@
 
 <br>
 ## Installation
-Install [Node.js](https://nodejs.org/en/)  
+Install [Node.js](https://nodejs.org/en/)
+
+_Optionally_ install forever:
+>`npm i -g forever`
+
+Install clusters-client:
 >`npm i -g https://github.com/hdf/clusters-client.git`
 
 <br>
