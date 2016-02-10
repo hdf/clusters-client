@@ -1,19 +1,23 @@
 {
   "name": "clusters-client",
-  "version": "0.0.1",
-  "description": "Data processing done with webworker-threads",
+  "version": "0.0.2",
+  "description": "Data processing done with webworker-threads or with native dynamic linked libraries using node-ffi",
   "license": "MIT",
   "keywords": [
     "clusters",
     "Web Workers",
-    "WebWorkers"
+    "WebWorkers",
+    "ffi",
+    "node-ffi",
+    "distributed computing"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/hdf/clusters-client.git"
   },
   "dependencies": {
-    "webworker-threads": "^0.6.2"
+    "webworker-threads": "^0.6.2",
+    "ffi": "^2.0.0"
   },
   "bin": {
     "clusters-client": "./index.js"
