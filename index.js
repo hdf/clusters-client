@@ -46,6 +46,8 @@ var caPath = __dirname + '/cas/' + host + '.crt';
 //}
 
 //{ Cert acquisition / loading
+if (!fs.existsSync(__dirname + '/cas'))
+  fs.mkdirSync(__dirname + '/cas');
 if (ca) {
   connect(function(res) {
     res.setEncoding('utf8');
@@ -59,7 +61,7 @@ if (ca) {
         fs.writeFileSync(caPath, ca);
         getPackage();
       } else {
-        console.warn('A cert already exists for this host in the ca store! (Careful, someone might be trying to pose as the host!)');
+        console.warn('A cert already exists for this host in the ca store!\n(Careful, someone might be trying to pose as the host!)');
         process.exit();
       }
     });
