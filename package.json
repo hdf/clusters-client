@@ -19,6 +19,11 @@
     "webworker-threads": "^0.6.2",
     "ffi": "^2.0.0"
   },
+  "optionalDependencies": {
+    "ref-array": "^1.1.2",
+    "ref-union": "^1.0.1",
+    "ref-wchar": "^1.0.1"
+  },
   "bin": {
     "clusters-client": "./index.js"
   },

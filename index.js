@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
-"use strict";
-
 var os = require('os'),
+    fs = require('fs'),
     https = require('https'),
     url = require('url'),
     zlib = require('zlib'),
-    Worker = require('webworker-threads').Worker;
+    Worker = require('webworker-threads').Worker,
+    ffi = require('ffi'),
+    ref = require('ref'),
+    StructType = require('ref-struct');
 
 var tty = (typeof process.stdout.clearLine == 'function'),
     host = 'localhost', port = 8082, prefix = '',
@@ -17,6 +19,12 @@ var tty = (typeof process.stdout.clearLine == 'function'),
     staticScheduling = false; // This is a switch (for the c above)!
 
 //{ Command Line parameter parsing
+var ca = process.argv.indexOf('-ca');
+if (ca != -1) {
+  process.argv.splice(ca, 1);
+  ca = true;
+} else
+  ca = false;
 if (process.argv.length > 2) {
   if (process.argv[2].substr(0, 7) == 'http://')
     process.argv[2] = process.argv[2].substr(7);
@@ -34,8 +42,33 @@ if (process.argv.length > 2) {
 }
 if (process.argv.length > 3)
   cores = parseInt(process.argv[3]) || cores;
-console.log('Connecting to package manager server at: \'' + host + '\' on port: ' + port + ' at path: \'' + prefix + '/\' using ' + cores + ' cores.');
+var caPath = __dirname + '/cas/' + host + '.crt';
 //}
+
+//{ Cert acquisition / loading
+if (ca) {
+  connect(function(res) {
+    res.setEncoding('utf8');
+    var resdata = '';
+    res.on('data', function(chunk) {
+      resdata += chunk;
+    });
+    res.once('end', function() {
+      ca = resdata;
+      if (!fs.existsSync(caPath)) {
+        fs.writeFileSync(caPath, ca);
+        getPackage();
+      } else {
+        console.warn('A cert already exists for this host in the ca store! (Careful, someone might be trying to pose as the host!)');
+        process.exit();
+      }
+    });
+  }, prefix + '/ca', 'GET', undefined, '', true);
+} else
+  ca = (fs.existsSync(caPath))?fs.readFileSync(caPath):undefined;
+//}
+
+console.log('Connecting to package manager server at: \'' + host + '\' on port: ' + port + ' at path: \'' + prefix + '/\' using ' + cores + ' cores.');
 
 //{ Spawn workers
 function startWorkers() {
@@ -164,27 +197,34 @@ function sendResults() {
   results = [];
 }
 
-function connect(cb, path, method, headers, data) {
+function connect(cb, path, method, headers, data, noAuth) {
   path = path || '/';
   method = method || 'GET';
+  noAuth = noAuth || false;
   var req = https.request({
     host: host,
     port: port,
     path: path,
     method: method,
-    rejectUnauthorized: false,
+    rejectUnauthorized: (!noAuth),
+    ca: (ca === true)?undefined:ca,
     requestCert: true,
     agent: false,
     headers: headers
   }, cb);
   req.on('error', function(err) {
+    if (err.code == 'SELF_SIGNED_CERT_IN_CHAIN') {
+      if (ca != undefined) return;
+      console.log('Server\'s self signed certificate not in cert store. To add host ca to cert store run with `-ca`');
+      process.exit();
+    }
     console.error(err);
   });
   req.write(data);
   req.end();
 }
 
-getPackage();
+if (ca !== true) getPackage();
 //}
 
 //{ Work pump
