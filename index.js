@@ -5,18 +5,15 @@ var os = require('os'),
     https = require('https'),
     url = require('url'),
     zlib = require('zlib'),
-    Worker = require('webworker-threads').Worker,
-    ffi = require('ffi'),
-    ref = require('ref'),
-    StructType = require('ref-struct');
+    Worker = require('webworker-threads').Worker;
 
 var tty = (typeof process.stdout.clearLine == 'function'),
     host = 'localhost', port = 8082, prefix = '',
     cores = os.cpus().length || 1, start, time,
-    workers = [], proc = '', inputData = [], packages = 0,
+    workers = [], proc = '', inputData = [], packages = 0, last_dll = false,
     completed = 0, max = 0, // For progress meter
     c = 1, // Partition data for workers (dynamic scheduling)
-    staticScheduling = false; // This is a switch (for the c above)!
+    staticScheduling; // This is a switch (for the c above)!
 
 //{ Command Line parameter parsing
 var ca = process.argv.indexOf('-ca');
@@ -43,6 +40,10 @@ if (process.argv.length > 2) {
 if (process.argv.length > 3)
   cores = parseInt(process.argv[3]) || cores;
 var caPath = __dirname + '/cas/' + host + '.crt';
+
+var arch = process.platform;
+//if (arch.substr(-2) == '32') arch = arch.slice(0, -2);
+arch += '_' + process.arch.substr(-2);
 //}
 
 //{ Cert acquisition / loading
@@ -99,7 +100,7 @@ if (tty) {
   setInterval(function() { // Running workers display
     process.stdout.moveCursor(0, 1);
     process.stdout.clearScreenDown();
-    if (workers.length < 1) {
+    if (workers.length < 1 && inputData.length < 1) {
       idling = (idling + 1) % 4;
       var dots = new Array(idling + 1).join('.');
       process.stdout.write('Idling' + dots);
@@ -134,7 +135,10 @@ function ajax(url, data, cb) {
     data = zlib.gzipSync(data);
   }
   connect(function(res) {
-    res.setEncoding('utf8');
+    if (url.substr(-3) == 'dll')
+      res.setEncoding('binary');
+    else
+      res.setEncoding('utf8');
     var resdata = '';
     res.on('data', function(chunk) {
       resdata += chunk;
@@ -151,7 +155,7 @@ function getPackage() {
     process.stdout.write('Getting new package...');
     process.stdout.cursorTo(0);
   }
-  ajax('get', {packageId: pkgId}, function(res) {
+  ajax('get', {packageId: pkgId, arch: arch}, function(res) {
     gotPackage(JSON.parse(res));
   });
 }
@@ -165,11 +169,15 @@ function gotPackage(pkg) {
       process.stdout.write('No new packages available, checking again in one minute.');
       process.stdout.cursorTo(0);
     }
-    getPackageTimer = setTimeout(getPackage, 60000);
+    if (last_dll) { // Ugly hack, I know, but serverside the prioritization is a bit dicky, and I'm tired of it...
+      getPackageTimer = setTimeout(getPackage, 800);
+      last_dll = false;
+    } else
+      getPackageTimer = setTimeout(getPackage, 60000);
     return;
   }
   if (tty) {
-    process.stdout.write('Got new package (' + packages + '). Processing...');
+    process.stdout.write('Got new ' + ((typeof(pkg.dll) === 'string')?'DLL ':'') + 'package (' + packages + '). Processing...');
     process.stdout.cursorTo(0);
   }
   pkgId = pkg.packageId;
@@ -181,7 +189,29 @@ function gotPackage(pkg) {
   for (var i = 0, n = inputData.length; i < n; i++) // Assign an index to each value (faster than map)
     tmp[i] = [i, inputData[i]];
   inputData = tmp;
-  doWork();
+  if (typeof(pkg.dll) === 'string') {
+    staticScheduling = true;
+    getDLL(pkg.packageId.split('_')[0], pkg.dll);
+    last_dll = true;
+  } else {
+    staticScheduling = false;
+    doWork();
+    last_dll = false;
+  }
+}
+
+function getDLL(proj, dllName) {
+  ajax('dll', {proj: proj, arch: arch}, function(res) {
+    var dllPath = os.tmpdir() + '/clusters-client';
+    if (!fs.existsSync(dllPath)) fs.mkdirSync(dllPath);
+    dllPath += '/' + proj;
+    if (!fs.existsSync(dllPath)) fs.mkdirSync(dllPath);
+    dllPath += '/' + dllName;
+    fs.writeFile(dllPath, res, 'binary', function(err) {
+      if (err) throw err;
+      doDLL(dllPath);
+    });
+  });
 }
 
 function sendResults() {
@@ -221,6 +251,9 @@ function connect(cb, path, method, headers, data, noAuth) {
       process.exit();
     }
     console.error(err);
+    console.log('Trying again in 10 seconds.');
+    if (getPackageTimer) clearTimeout(getPackageTimer);
+    getPackageTimer = setTimeout(getPackage, 10000);
   });
   req.write(data);
   req.end();
@@ -230,6 +263,18 @@ if (ca !== true) getPackage();
 //}
 
 //{ Work pump
+function doDLL(dllPath) {
+  completed = 0;
+  start = process.hrtime();
+  //proc = new Function('a', 'b', 'i', 'c', 'var proc = ' + proc + ';\nreturn proc(a, b, i, c);');
+  eval('proc = ' + proc + ';');
+  for (var i = 0; i < inputData.length; i++) {
+    proc(inputData[i][1], dllPath, i, function(out, i) {
+      gotResult({data: {i: i, out: out}});
+    });
+  }
+}
+
 function doWork() {
   startWorkers();
   completed = 0;

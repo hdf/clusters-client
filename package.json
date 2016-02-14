@@ -16,10 +16,10 @@
     "url": "https://github.com/hdf/clusters-client.git"
   },
   "dependencies": {
-    "webworker-threads": "^0.6.2",
-    "ffi": "^2.0.0"
+    "webworker-threads": "^0.6.2"
   },
   "optionalDependencies": {
+    "ffi": "^2.0.0",
     "ref-array": "^1.1.2",
     "ref-union": "^1.0.1",
     "ref-wchar": "^1.0.1"

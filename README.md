@@ -1,5 +1,5 @@
 ># **Clusters Client**
->### _Node.js client for [Clusters](https://github.com/hdf/clusters) work distribution system using [webworker-threads](https://github.com/audreyt/node-webworker-threads)_
+>### _Node.js client for [Clusters](https://github.com/hdf/clusters) work distribution system using [webworker-threads](https://github.com/audreyt/node-webworker-threads) and/or [node-ffi](https://github.com/node-ffi/node-ffi)_
 
 <br>
 ## Installation
